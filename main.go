@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"syscall"
 )
 
@@ -33,13 +34,14 @@ var (
 )
 
 var (
-	color  = false
-	Reset  = "\033[0m"
-	Blue   = "\033[34m"
-	Green  = "\033[32m"
-	Cyan   = "\033[36m"
-	Yellow = "\033[33m"
-	Red    = "\033[31m"
+	color   = false
+	Reset   = "\033[0m"
+	Blue    = "\033[34m"
+	Green   = "\033[32m"
+	Cyan    = "\033[36m"
+	Yellow  = "\033[33m"
+	Red     = "\033[31m"
+	Magenta = "\033[35m"
 )
 
 //----------------------------------------------------------------
@@ -75,6 +77,7 @@ func main() {
 			longListing = true
 		case "--color=auto":
 			color = true
+			fmt.Println("color is on")
 		default:
 			dirPath = os.Args[i]
 		}
@@ -274,11 +277,33 @@ func printLongListing(entries []os.DirEntry) {
 		}
 		name := entry.Name()
 		if info.IsDir() {
-			//if color {
-			//	name = Blue + name + Reset + "/"
-			//}
-			name += "/"
+			if color {
+				name = Blue + name + Reset
+			}
+		} else if info.Mode()&0111 != 0 { // check if file is executable
+			if color {
+				name = Green + name + Reset
+			}
+		} else if info.Mode()&os.ModeSymlink != 0 {
+			if color {
+				name = Cyan + name + Reset
+			}
+		} else if info.Mode()&os.ModeDevice != 0 {
+			if color {
+				name = Yellow + name + Reset
+			}
+			// else if graphic image file then color it
+		} else if strings.HasSuffix(name, ".jpg") || strings.HasSuffix(name, ".jpeg") || strings.HasSuffix(name, ".png") || strings.HasSuffix(name, ".gif") || strings.HasSuffix(name, ".bmp") || strings.HasSuffix(name, ".tiff") || strings.HasSuffix(name, ".svg") {
+			if color {
+				name = Magenta + name + Reset
+			}
+			// if archive file then color it
+		} else if strings.HasSuffix(name, ".zip") || strings.HasSuffix(name, ".rar") || strings.HasSuffix(name, ".tar") || strings.HasSuffix(name, ".gz") || strings.HasSuffix(name, ".7z") || strings.HasSuffix(name, ".bz2") || strings.HasSuffix(name, ".xz") {
+			if color {
+				name = Red + name + Reset
+			}
 		}
+
 		stat, ok := info.Sys().(*syscall.Stat_t)
 		if !ok {
 			log.Println("Error getting system-specific file info")
@@ -287,7 +312,7 @@ func printLongListing(entries []os.DirEntry) {
 		mode := info.Mode().String()
 		fmt.Printf("%s %3d %s %s %6d %s %s\n",
 			mode, stat.Nlink, getUserName(stat.Uid), getGroupName(stat.Gid),
-			info.Size(), info.ModTime().Format("Jan _2 15:04"), entry.Name())
+			info.Size(), info.ModTime().Format("Jan _2 15:04"), name)
 	}
 }
 
