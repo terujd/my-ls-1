@@ -11,55 +11,23 @@ import (
 	"syscall"
 )
 
-/*
-Blue: Directory
-Green: Executable or recognized data file
-Cyan (Sky Blue): Symbolic link file
-Yellow with black background: Device
-Magenta (Pink): Graphic image file
-Red: Archive file
-Red with black background: Broken link
-*/
 var (
 	showHidden  bool   // -a flag
-	showAll     bool   // -A flag
 	longListing bool   // -l flag
 	reverse     bool   // -r flag
 	sortByTime  bool   // -t flag
 	recursive   bool   // -R flag
 	humanize    bool   // -h flag
 	dirPath     string // directory path to list
-
 )
 
-var (
-	color  = false
-	Reset  = "\033[0m"
-	Blue   = "\033[34m"
-	Green  = "\033[32m"
-	Cyan   = "\033[36m"
-	Yellow = "\033[33m"
-	Red    = "\033[31m"
-)
-
-//----------------------------------------------------------------
-//colors and ls meaning:
-/*
-Blue: Directory
-Green: Executable or recognized data file
-Cyan (Sky Blue): Symbolic link file
-Yellow with black background: Device
-Magenta (Pink): Graphic image file
-Red: Archive file
-Red with black background: Broken link
-*/
+// Usage go run main.go and add the command line tex: "go run main.go -la -y"
+// or use go run . -l or other command line
 func main() {
 	for i := 1; i < len(os.Args); i++ {
 		switch os.Args[i] {
 		case "-a":
 			showHidden = true
-		case "-A":
-			showAll = true
 		case "-l":
 			longListing = true
 		case "-r":
@@ -73,21 +41,18 @@ func main() {
 		case "-la":
 			showHidden = true
 			longListing = true
-		case "--color=auto":
-			color = true
 		default:
 			dirPath = os.Args[i]
 		}
 	}
 	if dirPath == "" {
-		dirPath = "./"
+		dirPath = "."
 	}
 	dir, err := os.Open(dirPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer dir.Close()
-
 	dirEntries, err := dir.ReadDir(0)
 	if err != nil {
 		log.Fatal(err)
@@ -103,7 +68,7 @@ func main() {
 	if longListing {
 		var totalSize int64
 		for _, entry := range dirEntries {
-			if !showAll && !showHidden && entry.Name()[0] == '.' {
+			if !showHidden && entry.Name()[0] == '.' {
 				continue
 			}
 			info, err := entry.Info()
@@ -122,6 +87,7 @@ func main() {
 	} else {
 		printShortListing(dirEntries)
 	}
+
 	if recursive {
 		err = filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
@@ -143,29 +109,16 @@ func main() {
 						return nil
 					}
 					if sortByTime {
-						sort.Slice(dirEntries, func(i, j int) bool {
-							return info.ModTime().After(info.ModTime())
-						})
-						if reverse {
-							reverseSlice(dirEntries)
-						}
-					} else if reverse {
-						sortReverse(dirEntries)
-					} else {
-						sortByName(dirEntries)
-					}
-					/*if sortByTime {
 						sortByModificationTime(dirEntries)
 					} else if reverse {
 						sortReverse(dirEntries)
 					} else {
 						sortByName(dirEntries)
-					}*/
-					//----------------------------------------------------------------
+					}
 					if longListing {
 						var totalSize int64
 						for _, entry := range dirEntries {
-							if !showAll && !showHidden && entry.Name()[0] == '.' {
+							if !showHidden && entry.Name()[0] == '.' {
 								continue
 							}
 							info, err := entry.Info()
@@ -191,12 +144,6 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-	}
-}
-
-func reverseSlice(entries []os.DirEntry) {
-	for i, j := 0, len(entries)-1; i < j; i, j = i+1, j-1 {
-		entries[i], entries[j] = entries[j], entries[i]
 	}
 }
 
@@ -238,10 +185,10 @@ func sortReverse(entries []os.DirEntry) {
 		return entries[i].Name() > entries[j].Name()
 	})
 }
+
 func printShortListing(entries []os.DirEntry) {
 	for _, entry := range entries {
-		//if !showAll && !showHidden && entry.Name()[0] == '.' {
-		if entry.Name() == "." || entry.Name() == ".." || entry.Name() == "..." || (!showHidden && entry.Name()[0] == '.') {
+		if !showHidden && entry.Name()[0] == '.' {
 			continue
 		}
 		if longListing {
@@ -255,16 +202,17 @@ func printShortListing(entries []os.DirEntry) {
 				mode, info.Sys().(*syscall.Stat_t).Nlink,
 				strconv.Itoa(int(info.Sys().(*syscall.Stat_t).Uid)),
 				strconv.Itoa(int(info.Sys().(*syscall.Stat_t).Gid)),
-				info.Size(), info.ModTime().Format("%+03d:%+03d" /*"Jan _2 15:04"*/), entry.Name())
+				info.Size(), info.ModTime().Format("Jan _2 15:04"), entry.Name())
 
 		} else {
 			fmt.Println(entry.Name())
 		}
 	}
 }
+
 func printLongListing(entries []os.DirEntry) {
 	for _, entry := range entries {
-		if !showAll && !showHidden && entry.Name()[0] == '.' {
+		if !showHidden && entry.Name()[0] == '.' {
 			continue
 		}
 		info, err := entry.Info()
@@ -274,9 +222,6 @@ func printLongListing(entries []os.DirEntry) {
 		}
 		name := entry.Name()
 		if info.IsDir() {
-			//if color {
-			//	name = Blue + name + Reset + "/"
-			//}
 			name += "/"
 		}
 		stat, ok := info.Sys().(*syscall.Stat_t)
